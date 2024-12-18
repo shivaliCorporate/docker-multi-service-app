@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  docker-multi-service-app:
+    build: .
+    ports:
+      - "8090:80" # Exposes Angular app at http://localhost:8080
+    depends_on:
+      - mock-backend
+      - redis
+    environment:
+      - API_URL=http://localhost:3000 # Angular app will call the backend here
+
+  mock-backend:
+    build: ./mock-backend
+    ports:
+      - "3000:3000" # Exposes the mock backend API at http://localhost:3000
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"

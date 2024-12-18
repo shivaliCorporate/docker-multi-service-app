@@ -1,181 +1,71 @@
-# Multi-Service Dockerized Application with Angular & Mock Backend
+## demo app - developing with Docker
 
-This project demonstrates how to set up a multi-service application with Docker, which includes:
+This demo app shows a simple user profile app set up using
 
-- **Angular frontend** app
-- **Mock backend** using **JSON Server**
-- Dockerized services for easy deployment and management
+- index.html with pure js and css styles
+- nodejs backend with express module
+- mongodb for data storage
 
-## Project Structure
+All components are docker-based
 
-The project is structured as follows:
+### With Docker
 
-```
-docker-multi-service-app/ # Angular App
-│
-├── mock-backend/         # Mock backend files (JSON Server)
-│   ├── server.js         # Mock backend setup using JSON Server
-│   ├── db.json           # Fake database (JSON file)
-├── docker-compose.yml    # Docker Compose file to run multi-container setup
-├── Dockerfile            # Dockerfile for Angular app
-└── README.md             # Project documentation
-```
+#### To start the application
 
----
+Step 1: Create docker network
 
-## Getting Started
+    docker network create mongo-network
 
-### Step 1: Clone the Repository
+Step 2: start mongodb
 
-Clone this repository to your local machine:
+    docker run -d -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password --name mongodb --net mongo-network mongo
 
-```bash
-git clone https://github.com/your-username/docker-multi-service-app.git
-cd docker-multi-service-app
-```
+Step 3: start mongo-express
 
----
+    docker run -d -p 8081:8081 -e ME_CONFIG_MONGODB_ADMINUSERNAME=admin -e ME_CONFIG_MONGODB_ADMINPASSWORD=password --net mongo-network --name mongo-express -e ME_CONFIG_MONGODB_SERVER=mongodb mongo-express
 
-### Step 2: Build the Docker Images
+_NOTE: creating docker-network in optional. You can start both containers in a default network. In this case, just emit `--net` flag in `docker run` command_
 
-#### Build the Mock Backend Image
+Step 4: open mongo-express from browser
 
-Navigate to the `mock-backend` directory and build the Docker image for the mock backend:
+    http://localhost:8081
 
-```bash
-cd mock-backend
-docker build -t your-dockerhub-username/mock-backend .
-```
+Step 5: create `user-account` _db_ and `users` _collection_ in mongo-express
 
-#### Build the Angular App Image
+Step 6: Start your nodejs application locally - go to `app` directory of project
 
-Navigate to the `angular-app` directory and build the Docker image for the Angular app:
+    npm install
+    node server.js
 
-```bash
-cd ../angular-app
-docker build -t your-dockerhub-username/angular-app .
-```
+Step 7: Access you nodejs application UI from browser
 
----
+    http://localhost:3000
 
-### Step 3: Run the Application Using Docker Compose
+### With Docker Compose
 
-#### Create/Update `docker-compose.yml`
+#### To start the application
 
-The `docker-compose.yml` file is used to define and configure both services (Angular frontend and Mock Backend) as separate containers.
+Step 1: start mongodb and mongo-express
 
-Here’s the configuration:
+    docker-compose -f docker-compose.yaml up
 
-```yaml
-version: "3.8"
+_You can access the mongo-express under localhost:8080 from your browser_
 
-services:
-  docker-multi-service-app:
-    build: .
-    ports:
-      - "8090:80" # Exposes Angular app at http://localhost:8080
-    depends_on:
-      - mock-backend
-      - redis
-    environment:
-      - API_URL=http://localhost:3000 # Angular app will call the backend here
+Step 2: in mongo-express UI - create a new database "my-db"
 
-  mock-backend:
-    build: ./mock-backend
-    ports:
-      - "3000:3000" # Exposes the mock backend API at http://localhost:3000
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+Step 3: in mongo-express UI - create a new collection "users" in the database "my-db"
 
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
-```
+Step 4: start node server
 
-This configuration:
+    npm install
+    node server.js
 
-- Defines the `mock-backend` and `angular-app` services.
-- Builds the services from local directories (`./mock-backend` and `./angular-app`).
-- Exposes ports `3000` for the mock backend and `4200` for the Angular frontend.
-- Ensures that the `angular-app` starts only after the `mock-backend` is up.
+Step 5: access the nodejs application from browser
 
-#### Start the Application
+    http://localhost:3000
 
-With Docker Compose configured, you can now start both services by running:
+#### To build a docker image from the application
 
-```bash
-docker-compose up --build
-```
+    docker build -t my-app:1.0 .
 
-This command will:
-
-1. Build both Docker images for the Angular app and the mock backend.
-2. Start the containers for both services.
-
-Once the containers are running, the Angular app will be accessible at [http://localhost:4200](http://localhost:4200) and the mock backend API at [http://localhost:3000](http://localhost:3000).
-
----
-
-### Step 4: Access the Application
-
-#### Frontend (Angular App)
-
-Once the containers are running, access the Angular app by navigating to [http://localhost:4200](http://localhost:4200).
-
-#### Mock Backend (JSON Server)
-
-The mock backend, which serves fake data from a JSON file, will be available at [http://localhost:3000](http://localhost:3000). For example:
-
-- Access the tasks endpoint: [http://localhost:3000/tasks](http://localhost:3000/tasks)
-
----
-
-### Step 5: Push Docker Images to Docker Hub (Optional)
-
-If you want to upload your Docker images to Docker Hub for public access or deployment:
-
-1. **Tag the images**:
-
-   ```bash
-   docker tag angular-app:latest your-dockerhub-username/angular-app:latest
-   docker tag mock-backend:latest your-dockerhub-username/mock-backend:latest
-   ```
-
-2. **Push the images**:
-   ```bash
-   docker push your-dockerhub-username/angular-app:latest
-   docker push your-dockerhub-username/mock-backend:latest
-   ```
-
-Replace `your-dockerhub-username` with your actual Docker Hub username.
-
----
-
-### Step 6: Stopping the Services
-
-To stop the running services, you can press `CTRL+C` or run:
-
-```bash
-docker-compose down
-```
-
-This will stop and remove the containers but keep the images intact.
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-### Conclusion
-
-This setup allows you to quickly run a multi-service application with Docker, which includes:
-
-- A Dockerized Angular frontend.
-- A mock backend using JSON Server.
-
-Both services communicate with each other through Docker's custom network, and Docker Compose simplifies managing and orchestrating them together. Let me know if you have any further questions or need assistance!
+The dot "." at the end of the command denotes location of the Dockerfile.

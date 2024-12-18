@@ -1,5 +1,5 @@
 # Use Node.js base image
-FROM node:18
+FROM node:18-alpine
 
 # Set working directory inside container
 WORKDIR /app
@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 # Install dependencies inside the container
 RUN npm install
 
-# Copy all other files (db.json, server.js, etc.)
+# Copy all other files
 COPY . .
 
 # Expose port 3000 for the API
