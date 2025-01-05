@@ -28,7 +28,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: ../mock-backend
+          context: ./mock-backend
           push: true
           tags: |
             - ${{ env.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
