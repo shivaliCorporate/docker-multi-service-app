@@ -3,14 +3,44 @@ services:
     image: shivalikhariwal/my-node-app:1.2
     ports:
       - 3000:3000
+    restart: always
+    networks:
+      - mynetwork
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   mongodb:
     image: mongo
     ports:
-      - 27016:27017
+      - 27017:27017
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+    networks:
+      - mynetwork
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   mongo-express:
     image: mongo-express
@@ -21,3 +51,23 @@ services:
       - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
       - ME_CONFIG_MONGODB_ADMINPASSWORD=password
       - ME_CONFIG_MONGODB_SERVER=mongodb
+    networks:
+      - mynetwork
+    deploy:
+      resources:
+        limits:
+          memory: 512M # Set the maximum memory limit for Mongo Express container
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:8081/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  mongo-data:
+
+networks:
+  mynetwork:
