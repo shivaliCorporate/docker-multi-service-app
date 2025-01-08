@@ -1,6 +1,5 @@
 let express = require('express');
 let path = require('path');
-let fs = require('fs');
 let MongoClient = require('mongodb').MongoClient;
 let bodyParser = require('body-parser');
 let app = express();
@@ -11,78 +10,85 @@ app.use(bodyParser.urlencoded({
 app.use(bodyParser.json());
 
 app.get('/', function (req, res) {
-    res.sendFile(path.join(__dirname, "index.html"));
-  });
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
 
 
 // use when starting application locally
 let mongoUrlLocal = "mongodb://admin:password@localhost:27017";
-
-// use when starting application as docker container
 let mongoUrlDocker = "mongodb://admin:password@mongodb:27017";
 
-// pass these options to mongo client connect request to avoid DeprecationWarning for current Server Discovery and Monitoring engine
+// MongoDB options and database name
 let mongoClientOptions = { useNewUrlParser: true, useUnifiedTopology: true };
-
-// "user-account" in demo with docker. "my-db" in demo with docker-compose
 let databaseName = "user";
 
-app.post('/update-profile', async function (req, res) {
+// Add a new user
+app.post('/add-user', async function (req, res) {
   let userObj = req.body;
 
   try {
-    // Connect to MongoDB (using the Docker network URL)
-    const client = await MongoClient.connect(mongoUrlDocker, { useNewUrlParser: true, useUnifiedTopology: true });
-    
+    const client = await MongoClient.connect(mongoUrlDocker, mongoClientOptions);
     const db = client.db(databaseName);
-    userObj['userid'] = 1;
 
-    const myquery = { userid: 1 };
-    const newvalues = { $set: userObj };
+    // Fetch the highest userid in the collection
+    const lastUser = await db.collection("details").find().sort({ userid: -1 }).limit(1).toArray();
+    const nextId = lastUser.length > 0 ? lastUser[0].userid + 1 : 1;
 
-    // Perform the update operation
-    await db.collection("details").updateOne(myquery, newvalues, { upsert: true });
+    userObj.userid = nextId; // Assign the next userid
 
-    // Close the connection after the operation is done
+    const result = await db.collection("details").insertOne(userObj);
+
+    client.close();
+    res.status(201).send({ message: "User added successfully", userId: result.insertedId });
+  } catch (err) {
+    console.error("Error adding user:", err);
+    res.status(500).send("Error adding user");
+  }
+});
+
+// Update an existing user
+app.post('/edit-user', async function (req, res) {
+  let { userid, ...updatedData } = req.body;
+
+  try {
+    const client = await MongoClient.connect(mongoUrlDocker, mongoClientOptions);
+    const db = client.db(databaseName);
+
+    const myquery = { userid: parseInt(userid) };
+    const newvalues = { $set: updatedData };
+
+    const result = await db.collection("details").updateOne(myquery, newvalues);
+
     client.close();
 
-    // Send the response after the database update is complete
-    res.send(userObj);
+    if (result.matchedCount === 0) {
+      res.status(404).send({ message: "User not found" });
+    } else {
+      res.send({ message: "User updated successfully" });
+    }
   } catch (err) {
-    // Handle any errors that occur during the process
-    console.error('Error:', err);
-    res.status(500).send('Error updating profile');
+    console.error("Error updating user:", err);
+    res.status(500).send("Error updating user");
   }
 });
 
-
-app.get('/get-profile', async function (req, res) {
-  console.log("Fetching profile...");
-  
+// Get all users
+app.get('/get-users', async function (req, res) {
   try {
-    // Connect to MongoDB using async/await
-    const client = await MongoClient.connect(mongoUrlDocker, { useNewUrlParser: true, useUnifiedTopology: true });
-    console.log("Connected to MongoDB:", client.databaseName);
+    const client = await MongoClient.connect(mongoUrlDocker, mongoClientOptions);
+    const db = client.db(databaseName);
 
-    let db = client.db(databaseName);
-    let myquery = { userid: 1 };
+    const users = await db.collection("details").find({}).toArray();
 
-    // Find the profile in the database
-    const result = await db.collection("details").findOne(myquery);
-    
-    client.close(); // Close the connection after the operation
-
-    // Send the result back to the client
-    console.log("Fetched profile:", result);
-    res.send(result ? result : {});
+    client.close();
+    res.send(users);
   } catch (err) {
-    console.error("Error occurred:", err);
-    res.status(500).send("Internal Server Error");
+    console.error("Error fetching users:", err);
+    res.status(500).send("Error fetching users");
   }
 });
-
 
 app.listen(3000, function () {
-  console.log("app listening on port 3000!");
+  console.log("App listening on port 3000!");
 });
